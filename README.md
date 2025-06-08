@@ -26,7 +26,8 @@ The goal of this MATLAB software is to solve the [support matrix machine](https:
 
 - **1) Four real-world datasets**  
   - [EEG Alcoholism](http://kdd.ics.uci.edu/databases/eeg/eeg.html): Classification of alcoholic vs. non-alcoholic subjects via EEG signals
-  - [INRIA Person](ftp://ftp.inrialpes.fr/pub/lear/douze/data/INRIAPerson.tar): Human detection in images
+  - INRIA Person: Human detection in images. You can download the dataset (e.g., using Google Chrome) from:
+    `ftp://ftp.inrialpes.fr/pub/lear/douze/data/INRIAPerson.tar`
   - [CIFAR-10](https://www.cs.toronto.edu/~kriz/cifar.html): Binary classification (dog vs. truck)
   - [MNIST](https://github.com/cvdfoundation/mnist.git): Handwritten digit recognition (0 vs. non-0)
 
