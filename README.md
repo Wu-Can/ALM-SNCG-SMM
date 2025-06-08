@@ -28,7 +28,7 @@ The goal of this MATLAB software is to solve the [support matrix machine](https:
   - [EEG Alcoholism](http://kdd.ics.uci.edu/databases/eeg/eeg.html): Classification of alcoholic vs. non-alcoholic subjects via EEG signals
   - [INRIA Person](ftp://ftp.inrialpes.fr/pub/lear/douze/data/INRIAPerson.tar): Human detection in images
   - [CIFAR-10](https://www.cs.toronto.edu/~kriz/cifar.html): Binary classification (dog vs. truck)
-  - [MNIST](https://yann.lecun.com/exdb/mnist): Handwritten digit recognition (0 vs. non-0)
+  - [MNIST](https://github.com/cvdfoundation/mnist.git): Handwritten digit recognition (0 vs. non-0)
 
 - **2) Synthetic data**  
 Generated randomly following the process in [Luo et al. (2015)](https://proceedings.mlr.press/v37/luo15.html).
