@@ -129,7 +129,7 @@ Execute the corresponding scripts in the following folders to reproduce all pape
   
 ## 4. Remark
 
-As mentioned in our paper, objective values computed by **ALM-SNCG** (tolerance 1e-8) serve as accuracy benchmarks when comparing algorithms with different termination criteria. Precomputed high-accuracy objective values are available in `\Data\Real_data`, enabling omission of Step 4.
+As mentioned in the paper, objective values from **ALM-SNCG** (tolerance 1e-8) serve as accuracy benchmarks when comparing algorithms with different termination criteria. For convenience, precomputed high-accuracy objective values are available in `\Data\Real_data`, allowing Step 4 to be skipped. Key FADMM outputs (such as relative objective values and runtime) are included in `FADMM\fastADMM.m`.
 
 
 
