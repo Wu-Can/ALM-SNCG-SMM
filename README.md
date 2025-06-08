@@ -13,24 +13,24 @@ The goal of this MATLAB software is to solve the [support matrix machine](https:
 
 ####  1.1 Optimization Problems and Solvers
 
-- 1) Solvers for SMM model with a fixed value of C
+- **1) Solvers for SMM model with a fixed value of C**
   - **ALM-SNCG**: Semismooth Newton-CG based augmented Lagrangian method
   - **isPADMM**: Inexact semi-proximal alternating direction method of multipliers 
   - **sGS-isPADMM**: Symmetric Gauss-Seidel based isPADMM
   - **F-ADMM**: Fast alternating direction method of multipliers with restart rule
-- 2) Solvers for SMM models with a sequence of C
+- **2) Solvers for SMM models with a sequence of C**
   - **AS+ALM**: Adaptive sieving strategy combined with **ALM-SNCG**
   - **Warm+ALM**: Warm-strated **ALM-SNCG**
 
 #### 1.2 Data Sources
 
-- 1) **Four real-world datasets**  
+- **1) Four real-world datasets**  
   - [EEG Alcoholism](http://kdd.ics.uci.edu/databases/eeg/eeg.html): Classification of alcoholic vs. non-alcoholic subjects via EEG signals
   - [INRIA Person](ftp://ftp.inrialpes.fr/pub/lear/douze/data/INRIAPerson.tar): Human detection in images
   - [CIFAR-10](https://www.cs.toronto.edu/~kriz/cifar.html): Binary classification (dog vs. truck)
   - [MNIST](https://yann.lecun.com/exdb/mnist): Handwritten digit recognition (0 vs. non-0)
 
-- 2) **Synthetic data**  
+- **2) Synthetic data**  
 Generated randomly following the process in [Luo et al. (2015)](https://proceedings.mlr.press/v37/luo15.html).
 
 #### 1.3 Repository Structure
