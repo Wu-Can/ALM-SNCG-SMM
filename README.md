@@ -71,51 +71,61 @@ All reported results were obtained using MATLAB R2022b on a desktop computer (8-
     <th>Results</th>
     <th>Scripts</th>
     <th>Folders</th>
+    <th>Runtime(hours)</th>
   </tr>
   <tr>
     <td>Table 3</td>
     <td><i>Generate_Table3_real_relobj</i></td>
     <td><code>\Test1_fixed_C</code></td>
+    <td>1.8</td>
   </tr>
     <tr>
     <td>Table 4</td>
     <td><i>Generate_Table4_random_relobj</i></td>
     <td><code>\Test1_fixed_C</code></td>
+    <td>51.2</td>
   </tr>
     <tr>
     <td>Table 5</td>
     <td><i>Generate_Table5_real_relobj</i></td>
     <td><code>\Test1_fixed_C</code></td>
+    <td>51.1</td>
   </tr>
     <tr>
     <td>Table 6</td>
     <td><i>Generate_Table6_random_relobj</i></td>
     <td><code>\Test2_path_Cvec</code></td>
+    <td>24.3</td>
   </tr>
   <tr>
     <td>Table 7</td>
     <td><i>Generate_Table7_real_relobj</i></td>
     <td><code>\Test2_path_Cvec</code></td>
+    <td>0.8</td>
   </tr>
   <tr>
     <td>Figure 1</td>
     <td><i>Figure1_SM_ASM</i></td>
     <td><code>\Test0_figures_1_2</code></td>
+    <td>0</td>
   </tr>
   <tr>
     <td>Figure 2</td>
     <td><i>Figure2_low_rank_W</i></td>
     <td><code>\Test0_figures_1_2</code></td>
+    <td>0</td>
   </tr> 
     <tr>
     <td>Figure 3</td>
     <td><i>Test_figure_AS_Percentage_random</i></td>
     <td><code>\Test2_path_Cvec\Result_solution_path_figure_random</code></td>
+    <td>0</td>
   </tr>
     <tr>
     <td>Figure 4</td>
     <td><i>Test_figure_AS_Percentage_real</i></td>
     <td><code>\Test2_path_Cvec\Result_solution_path_figure_real</code></td>
+    <td>0</td>
   </tr>
   </table>
 
