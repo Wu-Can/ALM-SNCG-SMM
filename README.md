@@ -50,7 +50,7 @@ The scripts for replicating all numerical results in the paper
   
 ## 2. Computational Environment and Usage
   
-All reported results were obtained using MATLAB R2022b on a desktop computer (8-core, Intel(R) Core(TM) i7-10700 CPU @ 2.90GHz, 64G RAM). Replicate experiments as follows:
+All reported results were obtained using MATLAB R2022b on a desktop computer (8-core, Intel(R) Core(TM) i7-10700 CPU @ 2.90GHz, 64G RAM). The entire replication process took approximately 135.6 hours. The experiments were conducted as follows:
 
 ***Step 1***. Extract the repository and launch MATLAB from its root directory  
 ***Step 2***. In the MATLAB command window, type:
