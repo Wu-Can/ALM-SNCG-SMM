@@ -7,14 +7,16 @@ This repository contains a snapshot of the software used for the research presen
 ## 1 Description
 
 The goal of this MATLAB software is to solve the [support matrix machine](https://proceedings.mlr.press/v37/luo15.html) (SMM) model using a  semismooth Newton-CG based augmented Lagrangian method. Performance comparisons include:
-- Inexact semi-proximal ADMM (isPADMM)
-- Symmetric Gauss-Seidel based inexact semi-proximal ADMM (sGS-isPADMM)
+- Stochastic subgradient method 
+- Inexact semi-proximal ADMM 
+- Symmetric Gauss-Seidel based inexact semi-proximal ADMM 
 - Publically available [Fast ADMM with restart](http://bcmi.sjtu.edu.cn/~luoluo/code/smm.zip)
 
 ####  1.1 Optimization Problems and Solvers
 
 - **1) Solvers for SMM model with a fixed value of C**
   - **ALM-SNCG**: Semismooth Newton-CG based augmented Lagrangian method
+  - **SGD**: Stochastic subgradient method
   - **isPADMM**: Inexact semi-proximal alternating direction method of multipliers 
   - **sGS-isPADMM**: Symmetric Gauss-Seidel based isPADMM
   - **F-ADMM**: Fast alternating direction method of multipliers with restart rule
@@ -43,14 +45,14 @@ Generated randomly following the process in [Luo et al. (2015)](https://proceedi
 - **2) Numerical experiments**  
 The scripts for replicating all numerical results in the paper 
   - `Test0_figures_1_2`: Sample sparsity and low-rank characterization
-  - `Test1_fixed_C`: Fixed-parameter solver comparisons: ALM-SNCG vs. isPADMM vs. sGS-isPADMM vs. F-ADMM
+  - `Test1_fixed_C`: Fixed-parameter solver comparisons: ALM-SNCG, SGS, isPADMM, sGS-isPADMM, F-ADMM
   - `Test2_path_Cvec`: Parameter sequence solver comparisons: AS+ALM vs. Warm+ALM
 - **3) Data resources** 
   - `Data`: All synthetic and real datasets with precomputed high-precision objective values
   
 ## 2. Computational Environment and Usage
   
-All reported results were obtained using MATLAB R2022b on a desktop computer (8-core, Intel(R) Core(TM) i7-10700 CPU @ 2.90GHz, 64G RAM). The entire replication process took approximately 135.6 hours. The experiments were conducted as follows:
+All reported results were obtained using MATLAB R2022b on a desktop computer (8-core, Intel(R) Core(TM) i7-10700 CPU @ 2.90GHz, 64G RAM). The entire replication process took approximately 117.5 hours. The experiments were conducted as follows:
 
 ***Step 1***. Extract the repository and launch MATLAB from its root directory  
 ***Step 2***. In the MATLAB command window, type:
@@ -74,6 +76,12 @@ All reported results were obtained using MATLAB R2022b on a desktop computer (8-
     <th>Runtime(hours)</th>
   </tr>
   <tr>
+    <td>Figure 3</td>
+    <td><i>Generate_Figure3_real_maxiter</i></td>
+    <td><code>\Test1_fixed_C</code></td>
+    <td>2.9</td>
+  </tr>
+  <tr>
     <td>Table 3</td>
     <td><i>Generate_Table3_real_relobj</i></td>
     <td><code>\Test1_fixed_C</code></td>
@@ -83,13 +91,13 @@ All reported results were obtained using MATLAB R2022b on a desktop computer (8-
     <td>Table 4</td>
     <td><i>Generate_Table4_random_relobj</i></td>
     <td><code>\Test1_fixed_C</code></td>
-    <td>51.2</td>
+    <td>38.9</td>
   </tr>
     <tr>
     <td>Table 5</td>
     <td><i>Generate_Table5_real_relobj</i></td>
     <td><code>\Test1_fixed_C</code></td>
-    <td>51.1</td>
+    <td>42.4</td>
   </tr>
     <tr>
     <td>Table 6</td>
