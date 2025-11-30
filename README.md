@@ -60,7 +60,7 @@ All reported results were obtained using MATLAB R2022b on a desktop computer (8-
 ```
 
 ***Step 3***. Generate synthetic datasets: Run 
-*Test_generate_random_data.m* in the folder `\Data\Random_data`. This process took about 1.5 hours. To generate these datasets locally, you will need approximately 95GB of storage and 64GB of RAM; otherwise, they can be downloaded directly from our [OneDrive repository(https://1drv.ms/f/c/BCA0424525C22E45/EshtdVzsPGVIqDPH905-QvgBNGwH1YZS5GGtHJOTeaVBsg?e=lxLr8c).
+*Test_generate_random_data.m* in the folder `\Data\Random_data`. This process took about 1.5 hours. To generate these datasets locally, you will need approximately 95GB of storage and 64GB of RAM; otherwise, they can be downloaded directly from our [OneDrive repository](https://1drv.ms/f/c/BCA0424525C22E45/EshtdVzsPGVIqDPH905-QvgBNGwH1YZS5GGtHJOTeaVBsg?e=lxLr8c).
 
 ***Step 4***. Create benchmark solutions: Run *Generate_ALMSNCG_relkkt_1e_8.m* in the folder `\Data`. This process took about 4.9 hours.
 
