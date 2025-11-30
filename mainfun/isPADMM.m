@@ -43,6 +43,8 @@
 %% info.sigma_final = final sigma value in isPADMM
 %% info.totle_iter_alm = total number of ALM iterations
 %% info.totle_numSSNCG = total number of SNCG iterations
+%% info.num_svd = number of SVD
+%% info.time_svd = spent time on SVD
 %%
 %% Copyright (c) 2024 by Can Wu, Donghui Li, Defeng Sun
 %% For more details, please see Appendix D of the paper: 
@@ -72,6 +74,7 @@ fixsigma = 0;
 sigalm_scale1 = 5;
 sigalm_scale2 = 10;
 sigalm_scale3 = 35;
+test_svd = 0; % 1, if test time of SVD; 0, otherwise
 
 if isfield(OPTIONS,'tol'), tol = OPTIONS.tol; end
 if isfield(OPTIONS,'C'), C = OPTIONS.C; end
@@ -107,6 +110,7 @@ end
 if isfield(OPTIONS,'sigalm_scale1');  sigalm_scale1 = OPTIONS.sigalm_scale1; end
 if isfield(OPTIONS,'sigalm_scale2');  sigalm_scale2 = OPTIONS.sigalm_scale2; end
 if isfield(OPTIONS,'sigalm_scale3');  sigalm_scale3 = OPTIONS.sigalm_scale3; end
+if isfield(OPTIONS,'test_svd');  test_svd = OPTIONS.test_svd; end
 
 par.tol = tol;
 par.C = C;
@@ -123,6 +127,9 @@ cntAY = 0;
 totle_iter_alm = 0;
 totle_numSSNCG = 0;
 totaltime_ALM = 0;
+if test_svd
+    num_svd = 0; time_svd = 0;
+end
 %%
 %% Amap and ATmap
 %%
@@ -192,10 +199,17 @@ if flag_initial0 == 1
     AW_by_en = - en;
 else
     primfeas = norm(W_U_new,'fro')/(1 + normW + normU);
-    dualfeas = norm(Lam_new - projspball(Lam_new,par.tau),'fro')/(1 + normLam);
-    
     AW_by_en = AW_new + b_new*y - en;
-    primobj = 0.5*norm(W_new,'fro')^2 + par.tau*sum(svd(full(W_new))) + par.C*sum(max(-AW_by_en,0));
+    if test_svd
+        [Lam_tem, parPX] = projspball_svd(Lam_new, par.tau); time_svd = time_svd + parPX.time_svd;
+        tic; W_tmp = svd(full(W_new)); parPX.time_svd = toc; time_svd = time_svd + parPX.time_svd;
+        dualfeas = norm(Lam_new - Lam_tem,'fro')/(1 + normLam);
+        primobj = 0.5*norm(W_new,'fro')^2 + par.tau*sum(W_tmp) + par.C*sum(max(-AW_by_en,0));
+        num_svd = num_svd + 2;
+    else
+        dualfeas = norm(Lam_new - projspball(Lam_new, par.tau),'fro')/(1 + normLam);
+        primobj = 0.5*norm(W_new,'fro')^2 + par.tau*sum(svd(full(W_new))) + par.C*sum(max(-AW_by_en,0));
+    end
 end
 
 
@@ -296,16 +310,27 @@ for iter = 1:maxiter
     
     %% Compute U_new
     tmpU = Lam_new + par.sigma*W_new;
-    U_new = (1/par.sigma)*(tmpU - projspball(tmpU,tau));
-    
+    if test_svd
+        [temU_proj,parPX] = projspball_svd(tmpU,tau);
+        U_new = (1/par.sigma)*(tmpU - temU_proj);
+        num_svd = num_svd + 1;
+        time_svd = time_svd + parPX.time_svd;
+    else
+        U_new = (1/par.sigma)*(tmpU - projspball(tmpU,tau));
+    end
     %% Update mutiplier Lam_new
     W_U_new = W_new - U_new;
     Lam_new = Lam_new + (par.steplen*par.sigma)*W_U_new;
     
     %% check for termination
     ttime = etime(clock,tstart);
-    
-    primobj = 0.5*norm(W_new,'fro')^2 + par.tau*sum(svd(full(W_new))) + par.C*sum(max(-AW_by_en,0));
+    if test_svd
+        tic; W_tmp = svd(full(W_new)); parPX.time_svd = toc; time_svd = time_svd + parPX.time_svd;
+        primobj = 0.5*norm(W_new,'fro')^2 + par.tau*sum(W_tmp) + par.C*sum(max(-AW_by_en,0));
+        num_svd = num_svd + 1;
+    else
+        primobj = 0.5*norm(W_new,'fro')^2 + par.tau*sum(svd(full(W_new))) + par.C*sum(max(-AW_by_en,0));
+    end
     relobj = abs(primobj - optval)/(1 + abs(optval));
     if relobj < tol
         breakyes = 1;
@@ -319,7 +344,13 @@ for iter = 1:maxiter
     %%--------------------------------------------------------
     normW = norm(W_new,'fro'); normU = norm(U_new,'fro'); normLam = norm(Lam_new);
     primfeas = norm(W_U_new,'fro')/(1 + normW + normU);
-    dualfeas = norm(Lam_new - projspball(Lam_new,par.tau),'fro')/(1 + normLam);
+    if test_svd
+        [Lam_tem, parPX] = projspball_svd(Lam_new,par.tau);
+        dualfeas = norm(Lam_new - Lam_tem,'fro')/(1 + normLam);
+        num_svd = num_svd + 1; time_svd = time_svd + parPX.time_svd;
+    else
+        dualfeas = norm(Lam_new - projspball(Lam_new,par.tau),'fro')/(1 + normLam);
+    end
     
     if (fixsigma == 0)
         feasratio = primfeas/dualfeas;
@@ -441,4 +472,8 @@ info.totle_iter_alm = totle_iter_alm;
 info.totle_numSSNCG = totle_numSSNCG;
 info.totaltime_ALM = totaltime_ALM;
 info.AW_by_en = AW_by_en;
+if test_svd
+    info.num_svd = num_svd;
+    info.time_svd = time_svd;
+end
 end

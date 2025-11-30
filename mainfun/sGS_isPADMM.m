@@ -47,6 +47,8 @@
 %% info.totaltime_cpu = total running CPU time
 %% info.maxfeas = maximum of relative primal and dual infeasibilities
 %% info.sigma_final = final sigma value in sGS-isPADMM
+%% info.num_svd = number of SVD
+%% info.time_svd = spent time on SVD
 %% 
 %% Copyright (c) 2024 by Can Wu, Donghui Li, Defeng Sun
 %% For more details, please see Appendix E of the paper: 
@@ -79,6 +81,7 @@ stop_criterion = 0;
 computeW = 1; % 1, direct method; 0, CG
 k = 25;
 warm = 0;
+test_svd = 0; % 1, if test time of SVD; 0, otherwise
 
 if isfield(OPTIONS,'tol'), tol = OPTIONS.tol; end
 if isfield(OPTIONS,'C'), C = OPTIONS.C; end
@@ -121,6 +124,7 @@ if (fixsigma == 0) || (testsigma == 1)
     if isfield(OPTIONS,'sigma_siter');  sigma_siter = OPTIONS.sigma_siter; end
     if isfield(OPTIONS,'sigma_giter');  sigma_giter = OPTIONS.sigma_giter; end
 end
+if isfield(OPTIONS,'test_svd'), test_svd = OPTIONS.test_svd; end
 
 par.tol = tol;
 par.C = C;
@@ -246,6 +250,7 @@ end
 %%
 %% initial primal and dual infeasibilities
 %%
+time_svd = 0; num_svd = 0;
 W_new = W0; b_new = b0; v_new = v0; U_new = U0; Lam_new = Lam0; lam_new = lam0;
 invd_lam = invd_scale.*lam_new; dv = d_scale.*v_new;
 if flag_initial0 == 1
@@ -283,12 +288,25 @@ else
     
     dualfeas1_org = abs(y'*lam_new)/const_n;
     dualfeas2_org = norm(invd_lam + projBox(-invd_lam,par.C))/(1 + normlam_org);
-    dualfeas3_org = norm(Lam_new - projspball(Lam_new,par.tau),'fro')/(1 + normLam);
+    if test_svd
+        [Lam0, parPX] = projspball_svd(Lam_new,par.tau);
+        num_svd = num_svd + 1; time_svd = time_svd + parPX.time_svd;
+        dualfeas3_org = norm(Lam_new - Lam0,'fro')/(1 + normLam);
+    else
+        dualfeas3_org = norm(Lam_new - projspball(Lam_new,par.tau),'fro')/(1 + normLam);
+    end
     num_projsp = num_projsp + 1;
     dualfeas_org = max([dualfeas1_org,dualfeas2_org,dualfeas3_org]);
-    
+
     AW_by_en = AW_new + b_new*y - en;
-    primobj = 0.5*norm(W_new,'fro')^2 + par.tau*sum(svd(full(W_new))) + par.C*sum(max(-d_scale.*AW_by_en,0));
+    if test_svd
+        tic; W0 = svd(full(W_new)); time_svd_tmp = toc;
+        num_svd = num_svd + 1; time_svd = time_svd + time_svd_tmp;
+        primobj = 0.5*norm(W_new,'fro')^2 + par.tau*sum(W0) + par.C*sum(max(-d_scale.*AW_by_en,0));
+    else
+        primobj = 0.5*norm(W_new,'fro')^2 + par.tau*sum(svd(full(W_new))) + par.C*sum(max(-d_scale.*AW_by_en,0));
+    end
+
     dualobj = -0.5*norm(ATlam_Lam,'fro')^2 - sum(invd_lam);
     res_gap = abs(primobj - dualobj)/(1 + primobj + abs(dualobj));
     
@@ -310,7 +328,13 @@ else
     eta_W_org = norm(W_new + ATlam_Lam,'fro')/(1 + normW + normATlam + normLam);
     eta_b_org = dualfeas1_org;
     eta_v_org = norm(invd_lam + projBox(dv-invd_lam,par.C))/(1 + normlam + norm(dv));
-    eta_U_org = norm(Lam_new - projspball(U_new + Lam_new,par.tau),'fro')/(1 + normLam + normU);
+    if test_svd
+        [Lam0, parPX] = projspball_svd(U_new + Lam_new,par.tau);
+        num_svd = num_svd + 1; time_svd = time_svd + parPX.time_svd;
+        eta_U_org = norm(Lam_new - Lam0,'fro')/(1 + normLam + normU);
+    else
+        eta_U_org = norm(Lam_new - projspball(U_new + Lam_new,par.tau),'fro')/(1 + normLam + normU);
+    end
     num_projsp = num_projsp + 1;
     eta_lam_org = primfeas1_org;
     eta_Lam_org = primfeas2_org;
@@ -396,9 +420,15 @@ for iter = 1:maxiter
     AW_by_en = AW_new + b_new*y - en;
     tmpv = -lam_new - par.sigma*(AW_new + b_new*y - en);
     v_new = (1/par.sigma)*(tmpv - projBox(tmpv,Cd));
-    
+
     tmpU = Lam_new + par.sigma*W_new;
-    U_new = (1/par.sigma)*(tmpU - projspball(tmpU,tau));
+    if test_svd
+        [Lam0, parPX] = projspball_svd(tmpU,tau);
+        num_svd = num_svd + 1; time_svd = time_svd + parPX.time_svd;
+        U_new = (1/par.sigma)*(tmpU - Lam0);
+    else
+        U_new = (1/par.sigma)*(tmpU - projspball(tmpU,tau));
+    end
     num_projsp = num_projsp + 1;
     
     %% update mutilpliers lam and Lam
@@ -413,7 +443,13 @@ for iter = 1:maxiter
 
     if stop_criterion
         dv = d_scale.*v_new;
-        primobj = 0.5*norm(W_new,'fro')^2 + par.tau*sum(svd(full(W_new))) + par.C*sum(max(-d_scale.*AW_by_en,0));
+        if test_svd
+            tic; W0 = svd(full(W_new)); time_svd_tmp = toc;
+            num_svd = num_svd + 1; time_svd = time_svd + time_svd_tmp;
+            primobj = 0.5*norm(W_new,'fro')^2 + par.tau*sum(W0) + par.C*sum(max(-d_scale.*AW_by_en,0));
+        else
+            primobj = 0.5*norm(W_new,'fro')^2 + par.tau*sum(svd(full(W_new))) + par.C*sum(max(-d_scale.*AW_by_en,0));
+        end
         relobj = abs(primobj - optval)/(1 + abs(optval));
         if relobj < tol
             breakyes = 1;
@@ -440,7 +476,13 @@ for iter = 1:maxiter
         
         dualfeas1 = abs(y'*lam_new)/const_n;
         dualfeas2 = norm(lam_new + projBox(-lam_new,Cd))/(1 + normlam);%norm(lam_new + projBox(-lam_new,par.C))/(1 + normlam);
-        dualfeas3 = norm(Lam_new - projspball(Lam_new,par.tau),'fro')/(1 + normLam);
+        if test_svd
+            [Lam0, parPX] = projspball_svd(Lam_new,par.tau);
+            num_svd = num_svd + 1; time_svd = time_svd + parPX.time_svd;
+            dualfeas3 = norm(Lam_new - Lam0,'fro')/(1 + normLam);
+        else
+            dualfeas3 = norm(Lam_new - projspball(Lam_new,par.tau),'fro')/(1 + normLam);
+        end
         num_projsp = num_projsp + 1;
         dualfeas = max([dualfeas1,dualfeas2,dualfeas3]);
         
@@ -462,7 +504,13 @@ for iter = 1:maxiter
         eta_W_org = norm(W_new + ATlam_Lam,'fro')/(1 + normW + normATlam + normLam);
         eta_b_org = dualfeas1;
         eta_v_org = norm(invd_lam + projBox(dv-invd_lam,par.C))/(1 + normlam_org + norm(dv));
-        eta_U_org = norm(Lam_new - projspball(U_new + Lam_new, par.tau),'fro')/(1 + normLam + normU);
+        if test_svd
+            [Lam0, parPX] = projspball_svd(U_new + Lam_new, par.tau);
+            num_svd = num_svd + 1; time_svd = time_svd + parPX.time_svd;
+            eta_U_org = norm(Lam_new - Lam0,'fro')/(1 + normLam + normU);
+        else
+            eta_U_org = norm(Lam_new - projspball(U_new + Lam_new, par.tau),'fro')/(1 + normLam + normU);
+        end
         num_projsp = num_projsp + 1;
         eta_lam_org =  norm(d_scale.*AW_by_v_en)/const_n;
         eta_Lam_org = primfeas2;
@@ -496,7 +544,13 @@ for iter = 1:maxiter
         invd_lam = invd_scale.*lam_new;
         if computeobj == 0
             dv = d_scale.*v_new;
-            primobj = 0.5*norm(W_new,'fro')^2 + par.tau*sum(svd(full(W_new))) + par.C*sum(max(-d_scale.*AW_by_en,0));
+            if test_svd
+                tic; W0 = svd(full(W_new)); time_svd_tmp = toc;
+                num_svd = num_svd + 1; time_svd = time_svd + time_svd_tmp;
+                primobj = 0.5*norm(W_new,'fro')^2 + par.tau*sum(W0) + par.C*sum(max(-d_scale.*AW_by_en,0));
+            else
+                primobj = 0.5*norm(W_new,'fro')^2 + par.tau*sum(svd(full(W_new))) + par.C*sum(max(-d_scale.*AW_by_en,0));
+            end
         end
         dualobj = -0.5*norm(ATlam_Lam,'fro')^2 - sum(invd_lam);
         res_gap = abs(primobj - dualobj)/(1 + primobj + abs(dualobj));
@@ -506,7 +560,13 @@ for iter = 1:maxiter
             eta_W_org = norm(W_new + ATlam_Lam,'fro')/(1 + normW + norm(ATlam,'fro') + normLam);
             eta_b_org = dualfeas1;
             eta_v_org = norm(invd_lam + projBox(dv-invd_lam,par.C))/(1 + normlam_org + norm(dv));
-            eta_U_org = norm(Lam_new - projspball(U_new + Lam_new, par.tau),'fro')/(1 + normLam + normU);
+            if test_svd
+                [Lam0, parPX] = projspball_svd(U_new + Lam_new, par.tau);
+                num_svd = num_svd + 1; time_svd = time_svd + parPX.time_svd;
+                eta_U_org = norm(Lam_new - Lam0,'fro')/(1 + normLam + normU);
+            else
+                eta_U_org = norm(Lam_new - projspball(U_new + Lam_new, par.tau),'fro')/(1 + normLam + normU);
+            end
             num_projsp = num_projsp + 1;
             eta_lam_org = norm(d_scale.*(AW_by_v_en))/const_n;
             eta_Lam_org = primfeas2;
@@ -636,7 +696,13 @@ if computekkt == 0
     ATlam_Lam = ATlam + Lam_new;
 end
 if compute_resgap == 0
-    primobj = 0.5*norm(W_new,'fro')^2 + par.tau*sum(svd(full(W_new))) + par.C*sum(max(-d_scale.*AW_by_en,0));
+    if test_svd
+        tic; W0 = svd(full(W_new)); time_svd_tmp = toc;
+        num_svd = num_svd + 1; time_svd = time_svd + time_svd_tmp;
+        primobj = 0.5*norm(W_new,'fro')^2 + par.tau*sum(W0) + par.C*sum(max(-d_scale.*AW_by_en,0));
+    else
+        primobj = 0.5*norm(W_new,'fro')^2 + par.tau*sum(svd(full(W_new))) + par.C*sum(max(-d_scale.*AW_by_en,0));
+    end
     dualobj = -0.5*norm(ATlam_Lam,'fro')^2 - sum(lam_new);
     res_gap = abs(primobj - dualobj)/(1 + primobj + abs(dualobj));
 end
@@ -644,7 +710,13 @@ if computekkt == 0
     eta_W_org = norm(W_new + ATlam_Lam,'fro')/(1 + normW + norm(ATlam,'fro') + normLam);
     eta_b_org = dualfeas1;
     eta_v_org = norm(lam_new + projBox(v_new-lam_new,par.C))/(1 + normlam + norm(v_new));
-    eta_U_org = norm(Lam_new - projspball(U_new + Lam_new, par.tau),'fro')/(1 + normLam + normU);
+    if test_svd
+        [Lam0, parPX] = projspball_svd(U_new + Lam_new, par.tau);
+        num_svd = num_svd + 1; time_svd = time_svd + parPX.time_svd;
+        eta_U_org = norm(Lam_new - Lam0,'fro')/(1 + normLam + normU);
+    else
+        eta_U_org = norm(Lam_new - projspball(U_new + Lam_new, par.tau),'fro')/(1 + normLam + normU);
+    end
     num_projsp = num_projsp + 1;
     eta_lam_org = norm(d_scale.*(AW_by_v_en))/const_n;
     eta_Lam_org = primfeas2;
@@ -692,7 +764,10 @@ if (printyes)
     if ~isempty(msg); fprintf('\n %s',msg); end
     fprintf('\n--------------------------------------------------------------');
     fprintf('------------------');
-    fprintf('\n  number iter = %2.0d',iter);
+    fprintf('\n  number of iter = %2.0d',iter);
+    if test_svd
+        fprintf('\n  number of SVD = %2.0d,  time of SVD = %3.2f', num_svd, time_svd);
+    end
     fprintf('\n  time = %3.2f',ttime);
     fprintf('\n  time per iter = %5.4f',ttime/iter);
     fprintf('\n  cputime = %3.2f', ttime_cpu);
@@ -713,6 +788,8 @@ if (printyes)
     fprintf('------------------\n');
 end
 
+info.num_svd = num_svd;
+info.time_svd = time_svd;
 info.iter = iter;
 info.totaltime = ttime;
 info.totaltime_cpu = ttime_cpu;

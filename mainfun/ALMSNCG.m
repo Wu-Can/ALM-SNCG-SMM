@@ -59,7 +59,9 @@
 %% info.relgap = relative residual based on primal and dual infeasibilities, and duality gap
 %% info.relobj = relative objective value
 %% info.totaltime = total running time
-%% 
+%% info.num_svd = number of SVD
+%% info.time_svd = spent time on SVD
+%%
 %% Copyright (c) 2024 by Can Wu, Donghui Li, Defeng Sun
 %% For more details, please see Sections 2-3 of the paper: 
 %% Support matrix machine: exploring sample sparsity, low rank,
@@ -100,6 +102,7 @@ ifrandom = 0;
 tol_nSM = -1e-3;
 tol_admm = 1e-4;
 flag_v0 = 0;
+test_svd = 0; % 1, if test time of SVD; 0, otherwise
 
 if isfield(OPTIONS,'p'), p = OPTIONS.p; end
 if isfield(OPTIONS,'q'), q = OPTIONS.q; end
@@ -143,12 +146,16 @@ if isfield(OPTIONS,'printyes'), printyes = OPTIONS.printyes; end
 if isfield(OPTIONS,'printlevel_ALM'), printlevel_ALM = OPTIONS.printlevel_ALM; end
 if isfield(OPTIONS,'printlevel_SSN'), printlevel_SSN = OPTIONS.printlevel_SSN; end
 if isfield(OPTIONS,'tol_nSM'), tol_nSM = OPTIONS.tol_nSM; end
+if isfield(OPTIONS,'test_svd'), test_svd = OPTIONS.test_svd; end 
+if isfield(OPTIONS,'maxiter'), maxiter = OPTIONS.maxiter; end
+
 if isfield(OPTIONS,'maxitpsqmr'), maxitpsqmr = OPTIONS.maxitpsqmr; end
 if isfield(OPTIONS,'stagnate_check_psqmr')
     stagnate_check_psqmr = OPTIONS.stagnate_check_psqmr;
 end
 if tau == 0
     flag_tau = 0; % tau = 0  for the SMM model
+    test_svd = 0; 
 else
     flag_tau = 1;
 end
@@ -221,6 +228,7 @@ if warm
     OPTIONS_admm.lam0 = lam0;
     OPTIONS_admm.Lam0 = Lam0;
     OPTIONS_admm.optval = optval;
+    OPTIONS_admm.test_svd = test_svd;
 
     
     if printyes
@@ -241,6 +249,10 @@ if warm
     U0 = info_admm.U; Lam0 = info_admm.Lam;
     AW0 = info_admm.AW_by_en + en - b0*y0; 
     info.relobj_admm = info_admm.relobj;
+    if test_svd
+        num_svd = info_admm.num_svd;
+        time_svd = info_admm.time_svd;
+    end
 else
     U0 = W0;
     if flag_initial == 0
@@ -252,6 +264,7 @@ else
             v0 = en - AW0 - b0*y0;
         end
     end
+    if test_svd, num_svd = 0; time_svd = 0; end
 end
 %%
 %% Scaling A
@@ -281,7 +294,7 @@ else
     normd_scale = 0;
 end
 norm_en = norm(en);
-num_svds = 0; num_svd = 0;
+if test_svd, num_svds = 0; end
 %%
 %% Print the initial information
 %%
@@ -341,7 +354,13 @@ if flag_tau
     end
     
     eta_Lam_org = norm(full(W_new - U_new),'fro')/(1 + normW + normU);
-    eta_U_org = norm(Lam_new - projspball(U_new + Lam_new,par.tau),'fro')/(1 + normLam + normU); num_svd = num_svd + 1;
+    if test_svd
+        [U_Lam_tmp, parPX] = projspball_svd(U_new + Lam_new,par.tau);
+        eta_U_org = norm(Lam_new -U_Lam_tmp,'fro')/(1 + normLam + normU);
+        num_svd = num_svd + 1; time_svd = time_svd + parPX.time_svd;
+    else
+        eta_U_org = norm(Lam_new - projspball(U_new + Lam_new,par.tau),'fro')/(1 + normLam + normU);
+    end
     res_kkt_org = max([eta_W_org, eta_b_org, eta_v_org, eta_U_org, eta_lam_org, eta_Lam_org]);
 else
     if flag_B
@@ -364,24 +383,48 @@ dualfeas2_org = norm(invd_lam + projBox(-invd_lam,par.C))/(1 + norm_invd_lam);
 if flag_tau
     primfeas2 = eta_Lam_org;
     primfeas = max(primfeas1,primfeas2);
-    
-    dualfeas3 = norm(Lam_new - projspball(Lam_new,par.tau),'fro')/(1 + normLam); num_svd = num_svd + 1;
+    if test_svd
+        [Lam_tem, parPX] = projspball_svd(Lam_new,par.tau);
+        time_svd = time_svd + parPX.time_svd; num_svd = num_svd + 1;
+        dualfeas3 = norm(Lam_new - Lam_tem,'fro')/(1 + normLam);
+    else
+        dualfeas3 = norm(Lam_new - projspball(Lam_new,par.tau),'fro')/(1 + normLam);
+    end
+
     dualfeas = max([dualfeas1,dualfeas2,dualfeas3]);
     dualfeas3_org = dualfeas3;
     primfeas_org = max(eta_lam_org,eta_Lam_org);
     if flag_B
-        primobj_org = 0.5*norm(W_new - B,'fro')^2 +(delt/2)*(b_new - a)^2+ par.tau*sum(abs(svd(full(W_new)))) ...
-            + par.C*sum(max(-d_scale.*AWbye_new,0));
+        if test_svd
+            tic; Wsvd_tmp = svd(full(W_new)); parPX.time_svd = toc;
+            num_svd = num_svd + 1; time_svd = time_svd + parPX.time_svd;
+            primobj_org = 0.5*norm(W_new - B,'fro')^2 +(delt/2)*(b_new - a)^2+ par.tau*sum(abs(Wsvd_tmp)) ...
+                + par.C*sum(max(-d_scale.*AWbye_new,0)); 
+        else
+            primobj_org = 0.5*norm(W_new - B,'fro')^2 +(delt/2)*(b_new - a)^2+ par.tau*sum(abs(svd(full(W_new)))) ...
+                + par.C*sum(max(-d_scale.*AWbye_new,0)); 
+        end
         dualobj_org = -0.5*norm(full(ATlam_Lam - B),'fro')^2 - lam_new'*en + 0.5*normB^2 ...
             -(0.5/delt)*(yTlam - delt*a)^2 + (delt/2)*a^2;
         dualfeas_org = max([dualfeas3_org,dualfeas2_org]);
     else
-        primobj_org = 0.5*norm(W_new,'fro')^2 + par.tau*sum(abs(svd(full(W_new)))) + par.C*sum(max(-d_scale.*AWbye_new,0));
+        if test_svd
+            tic; Wsvd_tmp = svd(full(W_new)); parPX.time_svd = toc;
+            num_svd = num_svd + 1; time_svd = time_svd + parPX.time_svd;
+            primobj_org = 0.5*norm(W_new,'fro')^2 + par.tau*sum(abs(Wsvd_tmp)) + par.C*sum(max(-d_scale.*AWbye_new,0));
+        else
+            primobj_org = 0.5*norm(W_new,'fro')^2 + par.tau*sum(abs(svd(full(W_new)))) + par.C*sum(max(-d_scale.*AWbye_new,0));
+        end
         dualobj_org = -0.5*norm(full(ATlam_Lam),'fro')^2 - lam_new'*en;
         dualfeas_org = max([eta_b_org,dualfeas3_org,dualfeas2_org]);
     end
     X = Lam_new + par.sigma*W_new;
-    [ProjX,parPX] = projspball(X,par.tau); num_svd = num_svd + 1;
+    if test_svd
+        [ProjX,parPX] = projspball_svd(X,par.tau);
+        num_svd = num_svd + 1; time_svd = time_svd + parPX.time_svd; 
+    else
+        [ProjX,parPX] = projspball(X,par.tau);
+    end
 else
     primfeas = primfeas1;
     dualfeas = max([dualfeas1,dualfeas2]);
@@ -415,7 +458,7 @@ end
 %%
 %% Main code:ALM
 %%
-par.flag_svds = 1;
+if test_svd, par.flag_svds = 1; time_svd = 0; else, par.flag_svds = 0; end; par.test_svd = test_svd;
 for iter = 1:maxiter
     %%
     %% SNCG --> W_new, b_new
@@ -660,14 +703,19 @@ for iter = 1:maxiter
         
         %% Strongly Wolfe search for stepsize
         steptol = 1e-7;
-        [W_snew,b_snew,v_snew,U_snew,lam_snew,Lam_snew,omega_snew,X_snew,Pomega_snew,PX_snew,alpha,iterstep,g0,phi_snew,maxiterfs,AdW,normvsqr,normUsqr,FnormW_Bsqr,parPX] = ...
-            myfindstep(A,y0,y,W_snew,b_snew,v_snew,U_snew,lam_snew,Lam_snew,omega_snew,X_snew,dW,db,gradphiW,gradphib,phi_snew,FnormW_Bsqr,steptol,AJdW,parsub);
-        
+        if test_svd
+            [W_snew,b_snew,v_snew,U_snew,lam_snew,Lam_snew,omega_snew,X_snew,Pomega_snew,PX_snew,alpha,iterstep,g0,phi_snew,maxiterfs,AdW,normvsqr,normUsqr,FnormW_Bsqr,parPX] = ...
+                myfindstep_svd(A,y0,y,W_snew,b_snew,v_snew,U_snew,lam_snew,Lam_snew,omega_snew,X_snew,dW,db,gradphiW,gradphib,phi_snew,FnormW_Bsqr,steptol,AJdW,parsub);
+        else
+            [W_snew,b_snew,v_snew,U_snew,lam_snew,Lam_snew,omega_snew,X_snew,Pomega_snew,PX_snew,alpha,iterstep,g0,phi_snew,maxiterfs,AdW,normvsqr,normUsqr,FnormW_Bsqr,parPX] = ...
+                myfindstep(A,y0,y,W_snew,b_snew,v_snew,U_snew,lam_snew,Lam_snew,omega_snew,X_snew,dW,db,gradphiW,gradphib,phi_snew,FnormW_Bsqr,steptol,AJdW,parsub);
+        end
         numSSNCG = numSSNCG + 1;
         cntAY = cntAY + 1;
-        if flag_tau
+        if test_svd
             num_svd = parPX.num_svd + num_svd;
             num_svds = parPX.num_svds + num_svds;
+            time_svd = time_svd + parPX.time_svd;
         end
         if alpha < tiny; break_ok = 11; num_smallalp = num_smallalp + 1; end
                
@@ -787,14 +835,33 @@ for iter = 1:maxiter
         if flag_B
             eta_W_org = norm(W_new + ATlam_Lam - B,'fro')/(1 + normB);
             eta_b_org = abs(yTlam_new + par.delt*(b_new - par.a))/(1+par.delt*abs(par.a));
-            primobj_org = 0.5*FnormW_Bsqr + (par.delt/2)*(b_new - par.a)^2 + par.tau*sum(abs(svd(full(W_new)))) + par.C*sum(max(-AWbye_new_org,0));
+            if test_svd
+                tic; Wsvd_tmp = svd(full(W_new)); parPX.time_svd = toc;
+                num_svd = num_svd + 1; time_svd = time_svd + parPX.time_svd;
+                primobj_org = 0.5*FnormW_Bsqr + (par.delt/2)*(b_new - par.a)^2 + par.tau*sum(abs(Wsvd_tmp)) + par.C*sum(max(-AWbye_new_org,0));
+            else
+                primobj_org = 0.5*FnormW_Bsqr + (par.delt/2)*(b_new - par.a)^2 + par.tau*sum(abs(svd(full(W_new)))) + par.C*sum(max(-AWbye_new_org,0));
+            end
+
         else
             eta_W_org = norm(W_new + ATlam_Lam,'fro')/(1 + normW + normATlam + normLam);
             eta_b_org = (dualfeas1*(1 + normy))/constn;
-            primobj_org = 0.5*FnormW_Bsqr + par.tau*sum(abs(svd(full(W_new)))) + par.C*sum(max(-AWbye_new_org,0));
+            if test_svd
+                tic; Wsvd_tmp = svd(full(W_new)); parPX.time_svd = toc;
+                num_svd = num_svd + 1; time_svd = time_svd + parPX.time_svd;
+                primobj_org = 0.5*FnormW_Bsqr + par.tau*sum(abs(Wsvd_tmp)) + par.C*sum(max(-AWbye_new_org,0));
+            else
+                primobj_org = 0.5*FnormW_Bsqr + par.tau*sum(abs(svd(full(W_new)))) + par.C*sum(max(-AWbye_new_org,0));
+            end
         end
-        eta_U_org = norm(Lam_new - projspball(U_new + Lam_new,par.tau),'fro')/(1 + normLam + sqrt(max(normUsqr,0)));
-        eta_Lam_org = primfeas2_sub; num_svd = num_svd + 1;
+        if test_svd
+            [U_Lam_tmp, parPX] = projspball_svd(U_new + Lam_new,par.tau);
+            num_svd = num_svd + 1; time_svd = time_svd + parPX.time_svd;
+            eta_U_org = norm(Lam_new - U_Lam_tmp,'fro')/(1 + normLam + sqrt(max(normUsqr,0)));
+        else
+            eta_U_org = norm(Lam_new - projspball(U_new + Lam_new,par.tau),'fro')/(1 + normLam + sqrt(max(normUsqr,0)));
+        end
+        eta_Lam_org = primfeas2_sub; 
         
         res_kkt_org = max([eta_W_org, eta_b_org, eta_v_org, eta_U_org, eta_lam_org, eta_Lam_org]);
     else
@@ -831,7 +898,13 @@ for iter = 1:maxiter
         case 2
             eta_dual_lam = norm(invd_lam + projBox(-invd_lam,par.C))/(1 + norm_invd_lam);
             if flag_tau
-                eta_dual_LLam = norm(Lam_new - projspball(Lam_new,par.tau),'fro')/(1 + normLam); num_svd = num_svd + 1;
+                if test_svd
+                    [Lam_tem, parPX] = projspball_svd(Lam_new,par.tau);
+                    num_svd = num_svd + 1; time_svd = time_svd + parPX.time_svd;
+                    eta_dual_LLam = norm(Lam_new - Lam_tem,'fro')/(1 + normLam);
+                else
+                    eta_dual_LLam = norm(Lam_new - projspball(Lam_new,par.tau),'fro')/(1 + normLam); 
+                end
                 eta_prim_org = max(eta_lam_org, eta_Lam_org);
                 eta_dual_org = max([eta_b_org,eta_dual_lam, eta_dual_LLam]);
                 if flag_B
@@ -946,8 +1019,12 @@ for iter = 1:maxiter
     Projomega = projBox(omega,par.Cd);
     if flag_tau
         X = Lam_new + par.sigma*W_new;
-        [ProjX,parPX] = projspball(X,par.tau);
-        num_svd = num_svd + 1;
+        if test_svd
+            [ProjX,parPX] = projspball_svd(X,par.tau);
+            num_svd = num_svd + 1; time_svd = time_svd + parPX.time_svd;
+        else
+            [ProjX,parPX] = projspball(X,par.tau);
+        end
         if (res_kkt_org > 0.1) && min(par.p, par.q) >= 500
             par.flag_svds = 1;
         else
@@ -984,7 +1061,7 @@ if (printyes)
     fprintf('\n time per iter = %5.4f',ttime/iter);
     fprintf('\n cputime = %3.2f',ttime_cpu);
     fprintf('\n cntAY = %2.0d, cntATz = %2.0d', cntAY, cntATz);
-    if flag_tau
+    if flag_tau && test_svd
         fprintf('\n cntSVD = %2.0d, cntSVDS = %2.0d', num_svd, num_svds);
     end
     fprintf('\n primobj_org = %9.8e, dualobj_org = %9.8e, relgap_org = %3.2e',primobj_org,dualobj_org,res_gap_org);
@@ -1015,8 +1092,11 @@ if flag_tau
     info.eta_U_org = eta_U_org;
     info.eta_Lam_org = eta_Lam_org;
     info.normLam = normLam;
-    info.num_svd = num_svd;
-    info.num_svds = num_svds;
+    if test_svd
+        info.num_svd = num_svd;
+        info.num_svds = num_svds;
+        info.time_svd = time_svd;
+    end
 end
 
 info.xi_AS = xi_AS;
@@ -1058,5 +1138,4 @@ info.nSMM = nSMM;
 info.normW = normW;
 info.k1 = parsub.k1;
 info.AWbye_new_org = AWbye_new_org;
-
 end
