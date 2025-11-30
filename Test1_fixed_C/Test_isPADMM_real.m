@@ -20,7 +20,7 @@ fname{4} = 'A_train10_minist'; % MINIST: 0 or 1
 len_prob = length(prob_vec);
 lentau = length(tau_vec);
 lentol = length(tol_vec);
-result = zeros(len_prob*lentol*lentau*4,19);
+result = zeros(len_prob*lentol*lentau*4,12);
 datadir_opt = fileparts(datadir);
 addpath(genpath(datadir_opt));
 optobj = load([datadir_opt,filesep,'result_ALMSNCG_real_relkkt_1e-08.mat']);
@@ -34,16 +34,16 @@ for pp = 1:len_prob
         switch ii
             case 1
                 load([datadir,filesep,'A_EEG_test.mat']);
-                C_vec = [1e-4 1e-3 1e-2 1e-1]; num_tmp = 5;
+                C_vec = [1e-3 1e-2 1e-1]; num_tmp = 5;
             case 2
                 load([datadir,filesep,'A_test.mat']);
-                C_vec = [1e-3 1e-2 1e-1 1];num_tmp = 4;
+                C_vec = [1e-2 1e-1 1];num_tmp = 4;
             case 3
                 load([datadir,filesep,'A_c5_c9_test.mat']);
-                C_vec = [1e-3 1e-2 1e-1 1];num_tmp = 4;
+                C_vec = [1e-2 1e-1 1];num_tmp = 4;
             case 4
                 load([datadir,filesep,'A_test10_minist']);
-                C_vec = [1e-1 1 1e1 1e2]; num_tmp = 2;
+                C_vec = [1e-1 1 1e1]; num_tmp = 2;
         end
     else
         fprintf('\n Can not find the file!');
@@ -78,6 +78,7 @@ for pp = 1:len_prob
 
     OPTIONS.sigscale2 = 1.05;
     OPTIONS.sigscale3 = 1.25;
+    OPTIONS.test_svd = 1; % 1, if test time of SVD; 0, otherwise
     for oo = 1:lentol
         OPTIONS.tol = tol_vec(oo);
 
@@ -100,7 +101,7 @@ for pp = 1:len_prob
                 OPTIONS.C = C_vec(cc);
                 OPTIONS.optval = optobj.result(num_tmp+log10(OPTIONS.C)+log10(OPTIONS.tau)*4+(ii-1)*8,end);
 
-                [obj,W_train,b_train,~,info] = isPADMM(Ainput,y,OPTIONS);
+                [~,W_train,b_train,~,info] = isPADMM(Ainput,y,OPTIONS);
 
 
                 % compute the accuracy on the test set
@@ -134,10 +135,11 @@ for pp = 1:len_prob
                 result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,9) = info.totaltime;
                 result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,10) = info.iter;
                 result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,11) = info.totaltime/info.iter;
-
-
+                if OPTIONS.test_svd
+                    result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,12) = info.num_svd;
+                    result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,13) = info.time_svd;
+                end
             end
         end
     end
 end
-

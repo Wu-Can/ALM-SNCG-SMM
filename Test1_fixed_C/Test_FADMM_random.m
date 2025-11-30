@@ -1,5 +1,5 @@
 %%=========================================================================
-%% Test FADMM performance for the Support Matrix Machine (SMM) model 
+%% Test F-ADMM performance for the Support Matrix Machine (SMM) model 
 %% with fixed C using random data
 %%
 %% result = Test_FADMM_random(prob_vec,tau_vec,tol_vec,datadir)
@@ -59,19 +59,9 @@ for pp = 1:lenpp
                 if stop_flag
                     optval = optobj.result(2+log10(C)+(log10(tau)-1)*4+(ppp-1)*8,end);
                 end
+                test_svd = 1;
 
-                [W_train_vec, b_train, rk_W, iter, info] = fastADMM((Xy_train.X)', Xy_train.y, p, q, C, tau, max_iter, inner_iter, eps, stop_flag, optval);
-
-                % compute the classification accuracy on the training set
-                Y_train = (W_train_vec'*Xy_train.X)' + b_train;
-                y_train_com = mysign(Y_train);
-                right_y = (y_train_com == Xy_train.y);
-                accuracy_train = sum(right_y)/n;
-
-                % compute the number of support matrices
-                xi = 1-Xy_train.y.*(Y_train);
-                index_xigeq0 = (xi >= -1e-12);
-                nSMM = sum(index_xigeq0);
+                [W_train_vec, b_train, ~, iter, info] = fastADMM((Xy_train.X)', Xy_train.y, p, q, C, tau, max_iter, inner_iter, eps, stop_flag, optval, test_svd);
 
                 % compute the classification accuracy on the test set
                 Y_test = (W_train_vec'*Xy_test.X)' + b_train;
@@ -87,7 +77,12 @@ for pp = 1:lenpp
                 result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,7) = accuracy_test;
                 result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,8) = info.relobj;
                 result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,9) = info.time;
-
+                result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,10) = iter;
+                result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,11) = info.time/iter;
+                if test_svd
+                    result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,12) = info.num_svd;
+                    result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,13) = info.time_svd;
+                end
             end
         end
     end

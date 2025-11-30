@@ -15,6 +15,7 @@
 %% datadir = path to the directory containing random data files
 %==========================================================================
 function result = Test_ALMSNCG_random(prob_vec,tau_vec,tol_vec,stop_flag,datadir)
+
 C_vec = [0.1 1 10 100];
 %% Input the objective values under relkkt < 1e-8 if stop_flag = 1
 if stop_flag == 1
@@ -63,6 +64,7 @@ for pp = 1:lenProb
     OPTIONS.sigmaiter = 2;
     OPTIONS.sigmascale = 1.2;
     OPTIONS.Test_sigma = 1;
+    OPTIONS.test_svd = 1;
 
     for oo = 1:lentol
         tol = tol_vec(oo);
@@ -138,8 +140,16 @@ for pp = 1:lenProb
                     result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,10) = info.relobj;
                 end
                 result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,11) = info.totaltime;
+                result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,12) = info.iter;
+                result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,13) = info.numSSNCG;
+                if OPTIONS.test_svd
+                    result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,14) = info.num_svd;
+                    result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,15) = info.num_svds;
+                    result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,16) = info.num_svd+info.num_svds;
+                    result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,17) = info.time_svd;
+                end
                 if tol == 1e-8
-                    result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,12) = obj(1);
+                    result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,18) = obj(1);
                 end
             end
         end
@@ -148,7 +158,6 @@ for pp = 1:lenProb
     clear Xy_train Xy_test
 
 end
-
 
 
 

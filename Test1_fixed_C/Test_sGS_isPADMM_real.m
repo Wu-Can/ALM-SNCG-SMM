@@ -35,17 +35,17 @@ for pp = 1:len_prob
         switch ii
             case 1
                 load([datadir,filesep,'A_EEG_test.mat']);
-                C_vec = [1e-4 1e-3 1e-2 1e-1];
+                C_vec = [1e-3 1e-2 1e-1];
                 num_tmp = 5;
             case 2
                 load([datadir,filesep,'A_test.mat']);
-                C_vec = [1e-3 1e-2 1e-1 1];num_tmp = 4;
+                C_vec = [1e-2 1e-1 1];num_tmp = 4;
             case 3
                 load([datadir,filesep,'A_c5_c9_test.mat']);
-                C_vec = [1e-3 1e-2 1e-1 1];num_tmp = 4;
+                C_vec = [1e-2 1e-1 1];num_tmp = 4;
             case 4
                 load([datadir,filesep,'A_test10_minist']);
-                C_vec = [1e-1 1 1e1 1e2]; num_tmp = 2;
+                C_vec = [1e-1 1 1e1]; num_tmp = 2;
         end
     else
         fprintf('\n Can not find the file!');
@@ -85,6 +85,8 @@ for pp = 1:len_prob
     OPTIONS.sigscale2 = 3.5;
     OPTIONS.sigscale3 = 4.0;
 
+    OPTIONS.test_svd = 1; % 1, if test time of SVD; 0, otherwise
+
     for oo = 1:lentol
         OPTIONS.tol = tol_vec(oo);
         for tt = 1:lentau
@@ -102,7 +104,11 @@ for pp = 1:len_prob
                 end
                 OPTIONS.optval = optobj.result(num_tmp+log10(OPTIONS.C)+log10(OPTIONS.tau)*4+(ii-1)*8,end);
 
-                [~,~,~,~,info] = sGS_isPADMM(Ainput,y,OPTIONS);
+                [~,W_train,b_train,~,info] = sGS_isPADMM(Ainput,y,OPTIONS);
+
+                Y_test = A_EEG_test.Ainput'*W_train(:) + b_train;
+                y_test = mysign(Y_test);
+                accuracy_test = sum(y_test == A_EEG_test.y)/length(A_EEG_test.y);
 
                 result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,1) = OPTIONS.n;
                 result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,2) = OPTIONS.p;
@@ -111,9 +117,14 @@ for pp = 1:len_prob
                 result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,5) = OPTIONS.tau;
                 result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,6) = OPTIONS.C;
                 result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,7) = info.relobj;
-                result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,8) = info.iter;
-                result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,9) = info.totaltime;
-                result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,10) = info.totaltime/info.iter;
+                result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,8) = accuracy_test;
+                result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,9) = info.iter;
+                result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,10) = info.totaltime;
+                result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,11) = info.totaltime/info.iter;
+                if OPTIONS.test_svd
+                    result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,12) = info.num_svd;
+                    result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,13) = info.time_svd;
+                end
 
             end
         end

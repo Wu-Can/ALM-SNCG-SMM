@@ -34,7 +34,7 @@ end
 lenp = length(prob_vec);
 lentau = length(tau_vec);
 lentol = length(tol_vec);
-result = zeros(lenp*lentol*lentau*4,11);
+result = zeros(lenp*lentol*lentau*4,17);
 
 for pp = 1:lenp
     ii = prob_vec(pp);
@@ -45,22 +45,23 @@ for pp = 1:lenp
         switch ii
             case 1
                 load([datadir,filesep,'A_EEG_test.mat']);
-                C_vec = [1e-4 1e-3 1e-2 1e-1]; num_tmp = 5;
+                C_vec = [1e-3 1e-2 1e-1]; num_tmp = 5;
             case 2
                 load([datadir,filesep,'A_test.mat']);
-                C_vec = [1e-3 1e-2 1e-1 1]; num_tmp = 4;
+                C_vec = [1e-2 1e-1 1]; num_tmp = 4;
             case 3
                 load([datadir,filesep,'A_c5_c9_test.mat']);
-                C_vec = [1e-3 1e-2 1e-1 1]; num_tmp = 4;
+                C_vec = [1e-2 1e-1 1]; num_tmp = 4;
             case 4
                 load([datadir,filesep,'A_test10_minist']);
-                C_vec = [1e-1 1 1e1 1e2]; num_tmp = 2;
+                C_vec = [1e-1 1 1e1]; num_tmp = 2;
         end
     else
         fprintf('\n Data file not found!');
         fprintf('\n ');
         return
     end
+
     lenC = length(C_vec);
 
     eval(['Ainput = ',fname{ii},'.Ainput;']);
@@ -79,7 +80,8 @@ for pp = 1:lenp
     OPTIONS.sigmaiter = 2;
     OPTIONS.sigmascale = 1.2;
     OPTIONS.tol_admm = 1e-4;
-    OPTIONS.ifrandom = 0;
+    OPTIONS.ifrandom = 0; 
+    OPTIONS.test_svd = 1; % spent time on SVD
 
     OPTIONS.stop = stop_flag;
     for oo = 1:lentol
@@ -177,14 +179,20 @@ for pp = 1:lenp
                     result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,10) = info.relobj;
                 end
                 result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,11) = info.totaltime;
+                result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,12) = info.iter;
+                result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,13) = info.numSSNCG;
+                if OPTIONS.test_svd
+                    result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,14) = info.num_svd;
+                    result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,15) = info.num_svds;
+                    result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,16) = info.num_svd+info.num_svds;
+                    result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,17) = info.time_svd; % time for SVD
+                end
                 if tol == 1e-8
-                    result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,12) = obj(1);
+                    result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,18) = obj(1);
                 end
 
             end
         end
     end
 end
-
-
 

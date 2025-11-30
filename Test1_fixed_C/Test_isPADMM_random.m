@@ -60,6 +60,7 @@ for pp = 1:lenProb
     OPTIONS.sigscale2 = 1.05;
     OPTIONS.sigscale3 = 1.25;
     OPTIONS.sigma = 4;
+    OPTIONS.test_svd = 1;
     for oo = 1:lentol
         tol = tol_vec(oo);
         OPTIONS.tol = tol;
@@ -83,18 +84,8 @@ for pp = 1:lenProb
                 OPTIONS.optval = optobj.result(2+log10(OPTIONS.C)+(log10(OPTIONS.tau)-1)*4+(prob-1)*8,end);
 
 
-                [obj,W_train,b_train,runhist,info] = isPADMM(Xy_train.X,Xy_train.y,OPTIONS);
+                [~,W_train,b_train,~,info] = isPADMM(Xy_train.X,Xy_train.y,OPTIONS);
 
-                % compute the accuracy on the training set
-                Y_train = (W_train(:)'*Xy_train.X)' + b_train;
-                y_train_com = mysign(Y_train);
-                right_y = (y_train_com == Xy_train.y);
-                accuracy_train = sum(right_y)/OPTIONS.n;
-
-                % compute the number of support matrices
-                xi = 1-Xy_train.y.*(Y_train);
-                index_xigeq0 = (xi >= -1e-12);
-                numSMM = sum(index_xigeq0);
 
                 % compute the accuracy on the test set
                 Y_test = (W_train(:)'*Xy_test.X)' + b_train;
@@ -110,11 +101,16 @@ for pp = 1:lenProb
                 result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,7) = accuracy_test;
                 result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,8) = info.relobj;
                 result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,9) = info.totaltime;
-
+                result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,10) = info.iter;
+                result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,11) = info.totaltime/info.iter;
+                if OPTIONS.test_svd
+                    result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,12) = info.num_svd;
+                    result(cc+(tt-1)*lenC+(oo-1)*lenC*lentau+(pp-1)*lenC*lentau*lentol,13) = info.time_svd;
+                end
             end
         end
     end
-    eval(['save result_isPADMM_random_relobj','_',num2str(tol),'.mat result']);
+    %eval(['save result_isPADMM_random_relobj','_',num2str(tol),'.mat result']);
 end
 
 
