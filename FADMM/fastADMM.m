@@ -1,4 +1,4 @@
-function [w_k, b, rk, stop_iter,info] = fastADMM (X, y, p, q, C, tau, max_iter, inner_iter, eps, stop, optval, rho, eta)
+function [w_k, b, rk, stop_iter,info] = fastADMM (X, y, p, q, C, tau, max_iter, inner_iter, eps, stop, optval, test_svd,rho, eta)
 if (~exist('max_iter', 'var'))
     max_iter = 500;
 end
@@ -40,6 +40,7 @@ c_km1 = 0;
 recent_number = 50;
 recent_idx = 0;
 obj_recent = zeros(recent_number, 1);
+if test_svd, num_svd = 0; time_svd = 0; end
 
 fprintf('\n *********************************************************');
 fprintf('*********************************************************');
@@ -62,11 +63,19 @@ for k=1: max_iter
     w_k = (lambda_hatk + rho * s_hatk + X'*(alpha.*y)) / (rho + 1);
     sel = (alpha > 0) & (alpha < C);
     b = sel' * (y - X * w_k) / sum(sel);
-    
+
     W_k = reshape(w_k, p, q);
     Lambda_k = reshape(lambda_hatk, p, q);
-    S = shrinkage(rho*W_k - Lambda_k, tau) / rho;
-    s_k = reshape(S, d, 1);
+    if test_svd
+        [S_tmp, ~, ~, PX] = shrinkage_svd(rho*W_k - Lambda_k, tau);
+        S = S_tmp / rho;
+        s_k = reshape(S, d, 1);
+        num_svd = num_svd + 1;
+        time_svd = time_svd + PX;
+    else
+        S = shrinkage(rho*W_k - Lambda_k, tau) / rho;
+        s_k = reshape(S, d, 1);
+    end
     
     lambda_k = lambda_hatk - rho * (w_k - s_k);
     
@@ -91,8 +100,12 @@ for k=1: max_iter
     s_km1 = s_k;
     lambda_km1 = lambda_k;
     t_k = t_kp1;
-    
-    obj_k = objective_value(w_k, p, q, b, X, y, C, tau);
+    if test_svd
+        [obj_k, PX] = objective_value(w_k, p, q, b, X, y, C, tau, test_svd); 
+        num_svd = num_svd + 1; time_svd = time_svd + PX;
+    else
+        obj_k = objective_value(w_k, p, q, b, X, y, C, tau, test_svd);
+    end
     relobj = abs(obj_k - optval)/(1 + abs(optval));
     recent_idx = recent_idx + 1;
     obj_recent(recent_idx) = obj_k;
@@ -101,7 +114,13 @@ for k=1: max_iter
     end
     ttime = etime(clock,tstart);
     if mod(k, 1) == 0   %mod(k, 50) == 0 %mod(k, 500) == 0
-        rk = sum(svd(reshape(w_k, p, q))>1e-6);
+        if test_svd
+            Wk = reshape(w_k, p, q);
+            tic; Wk_tmp = svd(Wk); PX = toc; time_svd = time_svd + PX;
+            rk = sum(Wk_tmp>1e-6); num_svd = num_svd + 1;
+        else
+            rk = sum(svd(reshape(w_k, p, q))>1e-6);
+        end
         fprintf('k=%d, obj=%5.4e, restart=%d, rank=%d, relobj=%3.2e, time=%5.1f, norm(alpha)=%5.1f\n', k, obj_k, restart, rk, relobj, ttime, norm(alpha));
     end
     
@@ -125,11 +144,28 @@ if k == max_iter
    fprintf('\n maximum iteration reached!');  
 end
 stop_iter = k;
-rk = sum(svd(reshape(w_k, p, q))>1e-6);
+if test_svd
+    Wk = reshape(w_k, p, q);
+    tic; Wk_tmp = svd(Wk); PX = toc; time_svd = time_svd + PX;
+    rk = sum(Wk_tmp>1e-6);
+    num_svd = num_svd + 1;
+else
+    rk = sum(svd(reshape(w_k, p, q))>1e-6);
+end
 info.time = etime(clock,tstart);
 info.obj = obj_k;
 info.relobj = relobj;
-    function obj = objective_value(w, p, q, b, X, y, C, tau)
-        obj = 0.5 * (w') * w + C * sum(max(0, 1 - y .* (X * w + b))) + tau * sum(abs(svd(reshape(w,p,q))));
+if test_svd
+    info.num_svd = num_svd;
+    info.time_svd = time_svd;
+end
+    function [obj, PX] = objective_value(w, p, q, b, X, y, C, tau, test_svd)
+        if test_svd
+            W = reshape(w,p,q);
+            tic; W_tmp = svd(W); PX = toc;
+            obj = 0.5 * (w') * w + C * sum(max(0, 1 - y .* (X * w + b))) + tau * sum(abs(W_tmp));
+        else
+            obj = 0.5 * (w') * w + C * sum(max(0, 1 - y .* (X * w + b))) + tau * sum(abs(svd(reshape(w,p,q))));
+        end
     end
 end
