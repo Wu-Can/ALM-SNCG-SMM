@@ -34,7 +34,7 @@ end
 lenp = length(prob_vec);
 lentau = length(tau_vec);
 lentol = length(tol_vec);
-result = zeros(lenp*lentol*lentau*4,17);
+result = zeros(lenp*lentol*lentau*3,17);
 
 for pp = 1:lenp
     ii = prob_vec(pp);
@@ -195,4 +195,5 @@ for pp = 1:lenp
         end
     end
 end
+
 
