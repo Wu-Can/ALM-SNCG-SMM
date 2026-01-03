@@ -20,7 +20,7 @@ fname{4} = 'A_train10_minist'; % MINIST: 0 or 1
 lenprob = length(prob_vec);
 lentau = length(tau_vec);
 lentol = length(tol_vec);
-result = zeros(lenprob*lentol*lentau*4,13);
+result = zeros(lenprob*lentol*lentau*3,13);
 stop_flag = 1; % relative objective values as stopping criterion
 if stop_flag == 1
     datadir_opt = fileparts(datadir);
@@ -119,3 +119,4 @@ for pp = 1:lenprob
         end
     end
 end
+
