@@ -20,7 +20,7 @@ fname{4} = 'A_train10_minist'; % MINIST: 0 or 1
 len_prob = length(prob_vec);
 lentau = length(tau_vec);
 lentol = length(tol_vec);
-result = zeros(len_prob*lentol*lentau*4,12);
+result = zeros(len_prob*lentol*lentau*3,12);
 datadir_opt = fileparts(datadir);
 addpath(genpath(datadir_opt));
 optobj = load([datadir_opt,filesep,'result_ALMSNCG_real_relkkt_1e-08.mat']);
@@ -142,4 +142,5 @@ for pp = 1:len_prob
             end
         end
     end
+
 end
